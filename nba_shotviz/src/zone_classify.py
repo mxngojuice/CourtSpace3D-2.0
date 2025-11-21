@@ -18,14 +18,14 @@ from .court_geometry import (
     FT_LINE_X, PAINT_WIDTH
 )
 
-# Precompute the 3PT arc meet point with the straight corner lines
+# 3PT arc meet  with straight corner lines
 _THETA0 = math.asin(THREE_PT_CORNER / THREE_PT_RADIUS)   # arcsin(22/23.75)
 _X_MEET = HOOP_X + THREE_PT_RADIUS * math.cos(_THETA0)   # where arc meets straight corner lines
-# Restricted area radius (feet) and lane half-width
+# Restricted area and lane half-width
 _RESTRICTED_R = 4.0
 _HALF_PAINT = PAINT_WIDTH / 2.0
 
-# SHOT_ZONE_AREA labels (NBA convention)
+# Shot zone labels 
 _AREAS = [
     ("Left Side(L)",          -25.0, -15.0),
     ("Left Side Center(LC)",  -15.0,  -5.0),
@@ -38,13 +38,11 @@ _AREAS = [
 def classify_area_lane(y: float) -> str:
     """
     Map lateral y (feet) into one of the 5 vertical lanes used by NBA shot zones.
-    """
-    # Clamp y to [-25, 25] just in case
+    """    
     yy = max(-25.0, min(25.0, float(y)))
     for name, y0, y1 in _AREAS:
         if y0 <= yy < y1:
             return name
-    # Right-most inclusive
     return "Right Side(R)"
 
 
@@ -61,18 +59,18 @@ def classify_basic_zone(x: float, y: float, pad_ft: float = 0.0) -> str:
     """
     xf = float(x); yf = float(y)
 
-    # Restricted circle (exact, no padding)
+    # Restricted circle
     if math.hypot(xf - HOOP_X, yf - HOOP_Y) <= _RESTRICTED_R:
         return "Restricted Area"
 
-    # PAINT rectangle (allow optional padding)
+    # Paint
     half_paint = _HALF_PAINT + pad_ft
     x0 = 0.0 - pad_ft
     x1 = FT_LINE_X + pad_ft
     if x0 <= xf <= x1 and abs(yf) <= half_paint:
         return "In The Paint (Non-RA)"
 
-    # 3PT detection (exact, no padding)
+    # 3PT detection
     if abs(yf) >= THREE_PT_CORNER and xf <= _X_MEET:
         return "Left Corner 3" if yf < 0 else "Right Corner 3"
 

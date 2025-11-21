@@ -29,7 +29,6 @@ def player_zone_fg_table(player_df: pd.DataFrame) -> pd.DataFrame:
     if not required.issubset(player_df.columns):
         raise ValueError(f"player_df missing required columns: {required - set(player_df.columns)}")
 
-    # If we don't have SHOT_MADE_FLAG (should exist), fall back to 0 attempts
     has_flag = "SHOT_MADE_FLAG" in player_df.columns
     if not has_flag:
         player_df = player_df.assign(SHOT_MADE_FLAG=0)
@@ -73,7 +72,6 @@ def league_zone_fg_table(league_df: pd.DataFrame) -> pd.DataFrame:
         return g[["SHOT_ZONE_BASIC", "SHOT_ZONE_AREA", "league_fg"]]
 
     if "FG_PCT" in cols:
-        # Already a percentage; average by attempts if available, else mean
         # Prefer weighting by attempts if FGA exists
         if "FGA" in cols:
             g = (
@@ -93,7 +91,7 @@ def league_zone_fg_table(league_df: pd.DataFrame) -> pd.DataFrame:
         return g[["SHOT_ZONE_BASIC", "SHOT_ZONE_AREA", "league_fg"]]
 
     if "SHOT_MADE_FLAG" in cols:
-        # One row per shot; compute FG% directly
+        # One row per shot - compute percent directly
         g = (
             league_df
             .groupby(["SHOT_ZONE_BASIC", "SHOT_ZONE_AREA"], dropna=False, as_index=False)
@@ -103,5 +101,4 @@ def league_zone_fg_table(league_df: pd.DataFrame) -> pd.DataFrame:
         g["league_fg"] = g.apply(lambda r: _safe_ratio(r["made"], r["att"]), axis=1)
         return g[["SHOT_ZONE_BASIC", "SHOT_ZONE_AREA", "league_fg"]]
 
-    # If we reach here, we couldn't resolve the schema; return empty sane default
     return pd.DataFrame(columns=["SHOT_ZONE_BASIC", "SHOT_ZONE_AREA", "league_fg"])

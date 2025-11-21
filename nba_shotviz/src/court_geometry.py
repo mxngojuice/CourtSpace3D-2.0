@@ -2,11 +2,11 @@
 Court geometry + figure builder for the 3D half-court in Plotly.
 """
 
-# --- Imports
+# Imports
 import numpy as np
 import plotly.graph_objects as go
 
-# --- Court constants (feet)   matches NBA diagram
+# Court constants (feet)   matches NBA diagram
 COURT_LENGTH_HALF = 47.0
 COURT_WIDTH       = 50.0
 
@@ -15,17 +15,17 @@ RIM_RADIUS        = 0.75
 
 BACKBOARD_WIDTH   = 6.0
 BACKBOARD_HEIGHT  = 3.5
-BACKBOARD_X       = 4.0             # backboard plane from baseline
-RIM_TO_BACKBOARD  = 1.25            # 15 inches = 1.25 ft
-HOOP_X            = BACKBOARD_X + RIM_TO_BACKBOARD   # 5.25 ft
+BACKBOARD_X       = 4.0            
+RIM_TO_BACKBOARD  = 1.25           
+HOOP_X            = BACKBOARD_X + RIM_TO_BACKBOARD   
 HOOP_Y            = 0.0
 
-THREE_PT_RADIUS   = 23.75           # 23' 9"
+THREE_PT_RADIUS   = 23.75          
 THREE_PT_CORNER   = 22.0
 PAINT_WIDTH       = 16.0
-FT_LINE_X         = 19.0            # 15' from backboard -> 19' from baseline
+FT_LINE_X         = 19.0          
 
-# --- Helpers
+# Helpers
 def line3d(x,y,z, **kw):
     return go.Scatter3d(
         x=x, y=y, z=z, mode="lines",
@@ -41,7 +41,7 @@ def rectangle_outline3d(x0,x1,y0,y1,z=0,**kw):
     xs=[x0,x1,x1,x0,x0]; ys=[y0,y0,y1,y1,y0]; zs=[z]*5
     return line3d(xs,ys,zs,**kw)
 
-def filled_floor_surface(opacity=0.55):  # more transparent
+def filled_floor_surface(opacity=0.55):  
     X=np.array([[0,COURT_LENGTH_HALF],[0,COURT_LENGTH_HALF]])
     Y=np.array([[-COURT_WIDTH/2,-COURT_WIDTH/2],[COURT_WIDTH/2,COURT_WIDTH/2]])
     Z=np.zeros_like(X)
@@ -76,8 +76,8 @@ def add_three_point_line(fig, width=4, color="black", z_up=0.02, full_semicircle
     """
     R  = THREE_PT_RADIUS
     yc = THREE_PT_CORNER  # 22'
-    theta0 = np.arcsin(yc / R)           # <-- correct meeting angle
-    x_meet = HOOP_X + R * np.cos(theta0) # x where arc meets the straight lines
+    theta0 = np.arcsin(yc / R)          
+    x_meet = HOOP_X + R * np.cos(theta0) 
 
     # Arc
     if full_semicircle:
@@ -96,7 +96,7 @@ def add_three_point_line(fig, width=4, color="black", z_up=0.02, full_semicircle
         fig.add_trace(line3d([0, x_meet], [-yc, -yc], [z_up, z_up], width=width, color=color))
 
 
-# ---- NEW: one function that builds the court and returns a Figure
+# One function that builds the court and returns a Figure
 def build_court_figure(
     floor_opacity=0.55,
     show_full_3pt_semicircle=False,

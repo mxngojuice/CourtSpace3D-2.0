@@ -44,7 +44,7 @@ def add_shot_arc(
     hovertext: Optional[str] = None,
 ):
     """Quadratic Bezier arc from (x0,y0,z0) to rim with peak ~ apex_z."""
-    z_m = 2 * apex_z - 0.5 * (z0 + z1)  # ensures t=0.5 ~ apex_z
+    z_m = 2 * apex_z - 0.5 * (z0 + z1)  
 
     xm, ym = (x0 + x1) / 2.0, (y0 + y1) / 2.0
     t = np.linspace(0.0, 1.0, n)

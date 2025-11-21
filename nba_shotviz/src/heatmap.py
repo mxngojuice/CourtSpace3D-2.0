@@ -13,13 +13,12 @@ from .zone_classify import classify_basic_zone, classify_area_lane
 from .zone_tables import league_zone_fg_table, player_zone_fg_table
 
 
-# -------- helper: collapse ATB areas to L / C / R (keep corners unchanged) --------
+# collapse ATB areas to LCB
 def _collapse_atb_area(area: str) -> str:
     if area in ("Left Side(L)", "Left Side Center(LC)"):
         return "Left Side(L)"
     if area in ("Right Side(R)", "Right Side Center(RC)"):
         return "Right Side(R)"
-    # includes "Center(C)" itself
     return "Center(C)"
 
 
@@ -37,16 +36,16 @@ def zone_diff_grid(
     Returns:
         X, Y, Zdiff, [labels], [hover_text]  (depending on flags)
     """
-    # --- 1) Compute FG% by zone for player and league (then collapse ATB areas)
-    lg = league_zone_fg_table(league_df).copy()   # cols: SHOT_ZONE_BASIC, SHOT_ZONE_AREA, league_fg
-    pl = player_zone_fg_table(player_df).copy()   # cols: SHOT_ZONE_BASIC, SHOT_ZONE_AREA, player_fg, att, made
+    # Compute percent by zone
+    lg = league_zone_fg_table(league_df).copy()  
+    pl = player_zone_fg_table(player_df).copy()  
 
-    # Getting rid of back-court three point shots before merge bc shouldn't be factored into zone %'s.
+    #  unfactor back-court three point shots
     bad_areas = ["Back Court(BC)", "None"]
     lg = lg[~lg["SHOT_ZONE_AREA"].isin(bad_areas)].copy()
     pl = pl[~pl["SHOT_ZONE_AREA"].isin(bad_areas)].copy()
 
-    # Collapse ATB areas in PLAYER table: re-aggregate made/att, then recompute player_fg
+    # Collapse ATB areas 
     pl["SHOT_ZONE_AREA"] = pl.apply(
         lambda r: _collapse_atb_area(r["SHOT_ZONE_AREA"]) if r["SHOT_ZONE_BASIC"] == "Above the Break 3"
         else r["SHOT_ZONE_AREA"],
@@ -58,7 +57,6 @@ def zone_diff_grid(
     )
     pl["player_fg"] = pl.apply(lambda r: (r["made"] / r["att"]) if r["att"] > 0 else 0.0, axis=1)
 
-    # Collapse ATB areas in LEAGUE table: average league_fg after collapsing
     lg["SHOT_ZONE_AREA"] = lg.apply(
         lambda r: _collapse_atb_area(r["SHOT_ZONE_AREA"]) if r["SHOT_ZONE_BASIC"] == "Above the Break 3"
         else r["SHOT_ZONE_AREA"],
@@ -69,17 +67,17 @@ def zone_diff_grid(
           .agg(league_fg=("league_fg", "mean"))
     )
 
-    # Merge FG% tables (now both use collapsed keys)
+    # Merge 
     zt = pl.merge(lg, on=["SHOT_ZONE_BASIC", "SHOT_ZONE_AREA"], how="left")
-    zt["league_fg"] = zt["league_fg"].fillna(zt["player_fg"])  # fallback if missing
+    zt["league_fg"] = zt["league_fg"].fillna(zt["player_fg"]) 
     zt["diff"] = zt["player_fg"] - zt["league_fg"]
 
-    # --- 2) Lookups (based on collapsed keys)
+    # Lookups
     zone_to_diff   = {(r["SHOT_ZONE_BASIC"], r["SHOT_ZONE_AREA"]): float(r["diff"])       for _, r in zt.iterrows()}
     zone_to_player = {(r["SHOT_ZONE_BASIC"], r["SHOT_ZONE_AREA"]): float(r["player_fg"])  for _, r in zt.iterrows()}
     zone_to_league = {(r["SHOT_ZONE_BASIC"], r["SHOT_ZONE_AREA"]): float(r["league_fg"])  for _, r in zt.iterrows()}
 
-    # --- 3) Grid
+    # Grid
     x_centers = np.arange(bin_ft / 2, COURT_LENGTH_HALF, bin_ft)
     y_centers = np.arange(-COURT_WIDTH / 2 + bin_ft / 2, COURT_WIDTH / 2, bin_ft)
     X, Y = np.meshgrid(x_centers, y_centers)
@@ -87,19 +85,17 @@ def zone_diff_grid(
     labels = np.empty_like(X, dtype=object)
     hover_text = np.empty_like(X, dtype=object) if return_text else None
 
-    # --- 4) Assign
+    # Assign
     for i in range(Zdiff.shape[0]):
         for j in range(Zdiff.shape[1]):
             x, y = float(X[i, j]), float(Y[i, j])
 
-            basic = classify_basic_zone(x, y, pad_ft=bin_ft / 2.0)  # keep the half-bin pad
+            basic = classify_basic_zone(x, y, pad_ft=bin_ft / 2.0)  
 
-            # Paint (and RA) should use Center(C) to match tables
             if basic in ("In The Paint (Non-RA)", "Restricted Area"):
                 area = "Center(C)"
             else:
                 area = classify_area_lane(y)
-                # Collapse Above-the-Break areas to L / C / R
                 if basic == "Above the Break 3":
                     area = _collapse_atb_area(area)
 
@@ -120,7 +116,7 @@ def zone_diff_grid(
 
     Zdiff = np.nan_to_num(Zdiff, nan=0.0)
 
-    # --- 5) Return according to flags
+    # Return 
     if return_labels and return_text:
         return X, Y, Zdiff, labels, hover_text
     if return_labels:
@@ -169,17 +165,17 @@ def add_zone_hover_markers(
     Y: np.ndarray,
     hover_text: np.ndarray,
     *,
-    z_up: float = 0.12,     # above floor (0.0), surface (0.01), and boundaries (~0.08–0.09)
-    size: int = 14,         # generous target
-    opacity: float = 0.02,  # effectively invisible but hoverable
-    densify: bool = True,   # add N/S/E/W points per cell to enlarge hover hitbox
+    z_up: float = 0.12,    
+    size: int = 14,        
+    opacity: float = 0.02, 
+    densify: bool = True,   
 ):
     """
     Adds an 'invisible' hover layer over the heatmap.
     - Places markers high enough to avoid occlusion by surface/lines.
     - Optionally densifies each cell (center + 4 neighbors) to enlarge the hit area.
     """
-    # Ensure layout favors nearest object hover
+ 
     fig3d.update_layout(hovermode="closest")
 
     xc = X.ravel()
@@ -187,12 +183,12 @@ def add_zone_hover_markers(
     txt = hover_text.ravel().tolist()
 
     if densify:
-        # Estimate bin size (regular grid)
+        # Estimate bin size 
         x_cent = X[0, :]
         y_cent = Y[:, 0]
         dx = float(np.median(np.diff(x_cent))) if x_cent.size > 1 else 2.0
         dy = float(np.median(np.diff(y_cent))) if y_cent.size > 1 else 2.0
-        # Offsets (~1/3 bin) expand the hover footprint without overlapping neighbors too much
+        # Offsets 
         offs = [(0.0, 0.0), (dx*0.33, 0.0), (-dx*0.33, 0.0), (0.0, dy*0.33), (0.0, -dy*0.33)]
 
         xs, ys, texts = [], [], []
@@ -202,7 +198,7 @@ def add_zone_hover_markers(
             texts.append(txt)
         xs = np.concatenate(xs)
         ys = np.concatenate(ys)
-        texts = sum(texts, [])  # flatten list-of-lists
+        texts = sum(texts, [])  
     else:
         xs, ys, texts = xc, yc, txt
 
@@ -212,9 +208,9 @@ def add_zone_hover_markers(
         z=np.full(xs.shape, z_up),
         mode="markers",
         marker=dict(
-            size=size,          # pixel size in 3D
-            opacity=opacity,    # keep subtle/invisible
-            color="black",      # any color is fine at low opacity
+            size=size,          
+            opacity=opacity,   
+            color="black",      
             line=dict(width=0),
         ),
         text=texts,
@@ -245,34 +241,34 @@ def add_zone_boundaries_from_labels(
       - Optionally draw a white "halo" under each black boundary so lines read
         clearly over both hot (red) and cold (blue) regions.
     """
-    # 1) bin centers along each axis
+    # bin centers
     x_cent = X[0, :]    # shape (nx,)
     y_cent = Y[:, 0]    # shape (ny,)
 
-    # 2) bin size (regular grid)
+    # bin size
     dx = float(np.median(np.diff(x_cent))) if x_cent.size > 1 else 2.0
     dy = float(np.median(np.diff(y_cent))) if y_cent.size > 1 else 2.0
 
-    # 3) compute edges (centers +/- half bin)
+    # edges
     x_edges = np.concatenate(([x_cent[0] - dx/2], (x_cent[:-1] + x_cent[1:]) / 2, [x_cent[-1] + dx/2]))
     y_edges = np.concatenate(([y_cent[0] - dy/2], (y_cent[:-1] + y_cent[1:]) / 2, [y_cent[-1] + dy/2]))
 
     ny, nx = labels.shape
 
     def _add_segment(x0, x1, y0, y1):
-        # optional halo underneath (thicker, white)
+        # optional halo 
         if halo:
             fig3d.add_trace(
                 line3d([x0, x1], [y0, y1], [z_up, z_up],
                        width=width + halo_width_extra, color=halo_color, opacity=halo_opacity)
             )
-        # main boundary (on top, black)
+        # main boundary 
         fig3d.add_trace(
             line3d([x0, x1], [y0, y1], [z_up, z_up],
                    width=width, color=color, opacity=1.0)
         )
 
-    # 4) vertical boundaries: compare (i,j) with (i, j+1)
+    # vertical boundaries
     for i in range(ny):
         y0, y1 = y_edges[i], y_edges[i+1]
         for j in range(nx - 1):
@@ -280,7 +276,7 @@ def add_zone_boundaries_from_labels(
                 xe = x_edges[j+1]
                 _add_segment(xe, xe, y0, y1)
 
-    # 5) horizontal boundaries: compare (i,j) with (i+1, j)
+    #horizontal boundaries
     for i in range(ny - 1):
         ye = y_edges[i+1]
         for j in range(nx):

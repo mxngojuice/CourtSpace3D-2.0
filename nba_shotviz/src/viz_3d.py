@@ -11,7 +11,7 @@ from .heatmap import (
     zone_diff_grid,
     add_zone_heatmap_surface,
     add_zone_boundaries_from_labels,
-    add_zone_hover_markers,   # <-- import the hover layer
+    add_zone_hover_markers,  
 )
 
 def render_3d_trajectories(
@@ -29,25 +29,22 @@ def render_3d_trajectories(
         if league_df is None or league_df.empty:
             st.warning("League averages missing; cannot render hot/cold zones.")
         else:
-            # 1) Build the heatmap grid + labels + hover text
+            # heatmap grid + labels + hover text
             X, Y, Zdiff, labels, hover = zone_diff_grid(
                 df, league_df, bin_ft=2.0, return_labels=True, return_text=True
             )
 
-            # 2) Add the color surface (hover disabled on the surface)
+            # color surface
             add_zone_heatmap_surface(
                 fig, X, Y, Zdiff, vlim=vlim, z_lift=0.01, showscale=True
             )
 
-            # 3) Add invisible hover markers at cell centers
+            # hover markers
             add_zone_hover_markers(fig, X, Y, hover, z_up=0.011)
 
-            # 4) Draw crisp zone boundaries on top
+            # boundaries
             add_zone_boundaries_from_labels(fig, X, Y, labels, z_up=0.09, width=3, halo=True)
 
-        # When heatmap is on:
-        # - if force_make_miss_colors=True -> red/green arcs
-        # - else -> neutral gray arcs
         added = add_shots_from_df(
             fig, df, sample=sample,
             release_height_ft=0,
@@ -58,8 +55,6 @@ def render_3d_trajectories(
         st.caption(f"Rendering {added} shots")
 
     else:
-        # Heatmap OFF:
-        # honor the same toggle: red/green if True, neutral if False
         added = add_shots_from_df(
             fig, df, sample=sample,
             release_height_ft=0,
